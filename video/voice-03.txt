@@ -1,0 +1,1 @@
+First, ZAWA checks the wallet, the network, the balance, and the estimated gas fee. No guessing. No rushing.

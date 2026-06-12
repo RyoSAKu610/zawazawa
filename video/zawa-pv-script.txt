@@ -1,0 +1,13 @@
+Meet ZAWA Agent, an anxiety-powered onboarding buddy for Mantle. It helps beginners stay safe before they press Confirm.
+
+For new Web3 users, the danger is not only hackers. It is wrong networks, high gas, suspicious links, and bridges they do not understand.
+
+First, ZAWA checks the wallet, the network, the balance, and the estimated gas fee. No guessing. No rushing.
+
+If the action is too expensive or risky, ZAWA interrupts with a simple warning. Wait. The fee can be more dangerous than the transaction.
+
+Then ZAWA explains the safest next step in plain language. Verify the source, use Mantle, and start with free or low-cost tasks.
+
+When the user completes a safe action, ZAWA celebrates. A tiny successful step becomes memorable, not confusing.
+
+This is not just another chatbot. ZAWA is a face-acting risk manager, turning Mantle onboarding into a living safety layer.

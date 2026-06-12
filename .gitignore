@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+dist/
+.cache/
+*.log
+
+# Generated PV frame dumps are large and reproducible from the video source.
+video/frames/

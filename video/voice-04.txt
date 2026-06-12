@@ -1,0 +1,1 @@
+If the action is too expensive or risky, ZAWA interrupts with a simple warning. Wait. The fee can be more dangerous than the transaction.

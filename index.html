@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="ZAWA Agent finds the safest next move across Mantle with deterministic risk checks, plan review, and user-held wallet approval."
+    />
+    <title>ZAWA Agent</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="agent-pane" aria-label="ZAWA Agent status">
+        <div class="agent-head">
+          <div>
+            <p class="eyebrow">Mantle Agentic Economy</p>
+            <h1>ZAWA Agent</h1>
+            <p>Find the safest next move across Mantle.</p>
+          </div>
+          <span class="status-pill" id="expressionPill">Neutral</span>
+        </div>
+
+        <div class="zawa-stage" aria-label="Animated ZAWA character">
+          <div class="sprite-frame">
+            <div class="sprite" id="zawaSprite" role="img" aria-label="ZAWA Agent animation"></div>
+          </div>
+          <div class="dialogue">
+            <span>zawa... zawa...</span>
+            <p id="zawaLine">First, we check the battlefield: wallet, network, balance.</p>
+          </div>
+        </div>
+
+        <div class="agent-actions" aria-label="Wallet actions">
+          <button class="tool-button" id="connectBtn" type="button">
+            <span aria-hidden="true">+</span>
+            Connect Wallet
+          </button>
+          <button class="tool-button" id="mantleBtn" type="button">
+            <span aria-hidden="true">&lt;&gt;</span>
+            Switch to Mantle
+          </button>
+          <button class="tool-button" id="scanBtn" type="button">
+            <span aria-hidden="true">?</span>
+            Scan Wallet
+          </button>
+        </div>
+
+        <div class="safety-strip" aria-label="Safety posture">
+          <div>
+            <strong>No custody</strong>
+            <span>User signs only in wallet</span>
+          </div>
+          <div>
+            <strong>Exact approvals</strong>
+            <span>Unlimited approval blocked</span>
+          </div>
+          <div>
+            <strong>Hold allowed</strong>
+            <span>No move is a valid move</span>
+          </div>
+        </div>
+      </aside>
+
+      <section class="workbench" aria-label="ZAWA Agent workbench">
+        <header class="topbar">
+          <nav class="screen-tabs" aria-label="Workflow screens">
+            <a href="#wallet">Wallet</a>
+            <a href="#policy">Policy</a>
+            <a href="#opportunities">Opportunities</a>
+            <a href="#plan">Plan</a>
+            <a href="#review">Review</a>
+            <a href="#result">Result</a>
+          </nav>
+          <div class="run-state">
+            <span id="correlationId">No run yet</span>
+            <button class="primary-button" id="runBtn" type="button">Run Agent</button>
+          </div>
+        </header>
+
+        <section class="section-grid" id="wallet">
+          <div class="section-title">
+            <p class="eyebrow">Screen 2</p>
+            <h2>Wallet Scan</h2>
+          </div>
+          <div class="metric-grid">
+            <article class="metric">
+              <span>Address</span>
+              <strong id="walletAddress">Disconnected</strong>
+            </article>
+            <article class="metric">
+              <span>Network</span>
+              <strong id="walletNetwork">Unknown</strong>
+            </article>
+            <article class="metric">
+              <span>MNT balance</span>
+              <strong id="mntBalance">--</strong>
+            </article>
+            <article class="metric">
+              <span>USDC balance</span>
+              <strong id="usdcBalance">--</strong>
+            </article>
+            <article class="metric">
+              <span>Gas status</span>
+              <strong id="gasStatus">--</strong>
+            </article>
+            <article class="metric danger">
+              <span>Risky approvals</span>
+              <strong id="approvalStatus">--</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="section-grid" id="policy">
+          <div class="section-title">
+            <p class="eyebrow">Screen 3</p>
+            <h2>Goal And Budget</h2>
+          </div>
+
+          <div class="mode-row" aria-label="Mode presets">
+            <button class="mode-button" data-mode="survival" type="button">$2 Survival</button>
+            <button class="mode-button" data-mode="explorer" type="button">Explorer</button>
+            <button class="mode-button active" data-mode="custom" type="button">Custom</button>
+          </div>
+
+          <form class="policy-form" id="policyForm">
+            <label>
+              Total budget
+              <input id="totalBudget" type="number" min="0" step="0.01" value="10" />
+            </label>
+            <label>
+              Max spend
+              <input id="maxSpend" type="number" min="0" step="0.01" value="5" />
+            </label>
+            <label>
+              Max gas
+              <input id="maxGas" type="number" min="0" step="0.01" value="0.30" />
+            </label>
+            <label>
+              Max risk
+              <input id="maxRisk" type="number" min="0" max="100" step="1" value="30" />
+            </label>
+            <label>
+              Max price impact
+              <input id="maxImpact" type="number" min="0" step="0.01" value="1" />
+            </label>
+            <label>
+              Goal
+              <select id="goal">
+                <option value="learn">Learn</option>
+                <option value="preserve">Preserve</option>
+                <option value="swap">Swap</option>
+                <option value="earn" selected>Earn safely</option>
+                <option value="explore">Explore</option>
+              </select>
+            </label>
+
+            <label class="toggle">
+              <input id="allowSwaps" type="checkbox" checked />
+              <span>Allow swaps</span>
+            </label>
+            <label class="toggle">
+              <input id="allowLending" type="checkbox" checked />
+              <span>Allow lending</span>
+            </label>
+            <label class="toggle">
+              <input id="allowBorrowing" type="checkbox" />
+              <span>Allow borrowing</span>
+            </label>
+            <label class="toggle">
+              <input id="allowApprovals" type="checkbox" checked />
+              <span>Allow token approvals</span>
+            </label>
+            <label class="toggle">
+              <input id="allowUnlimited" type="checkbox" />
+              <span>Allow unlimited approvals</span>
+            </label>
+          </form>
+        </section>
+
+        <section class="section-grid" id="opportunities">
+          <div class="section-title">
+            <p class="eyebrow">Screen 4</p>
+            <h2>Opportunity Comparison</h2>
+          </div>
+          <div class="opportunity-grid" id="opportunityGrid"></div>
+        </section>
+
+        <section class="section-grid" id="plan">
+          <div class="section-title">
+            <p class="eyebrow">Screen 5</p>
+            <h2>Agent Plan</h2>
+          </div>
+          <div class="plan-layout">
+            <article class="plan-card">
+              <div class="plan-head">
+                <div>
+                  <span id="planProtocol">No plan</span>
+                  <h3 id="planTitle">Run the agent</h3>
+                </div>
+                <strong id="planRisk">--</strong>
+              </div>
+              <p id="planSummary">ZAWA has not compared the routes yet.</p>
+              <div class="plan-stats">
+                <div><span>Input</span><strong id="planInput">--</strong></div>
+                <div><span>Gas</span><strong id="planGas">--</strong></div>
+                <div><span>Net</span><strong id="planNet">--</strong></div>
+                <div><span>Signatures</span><strong id="planSignatures">--</strong></div>
+              </div>
+              <ol class="step-list" id="stepList"></ol>
+            </article>
+            <aside class="rejected-panel">
+              <h3>Rejected Alternatives</h3>
+              <ul id="rejectedList"></ul>
+            </aside>
+          </div>
+        </section>
+
+        <section class="section-grid" id="review">
+          <div class="section-title">
+            <p class="eyebrow">Screen 6</p>
+            <h2>Transaction Review</h2>
+          </div>
+          <div class="review-layout">
+            <div class="tx-list" id="txList"></div>
+            <article class="simulation-card" id="simulationCard">
+              <span>Simulation</span>
+              <strong id="simulationStatus">Waiting</strong>
+              <p id="simulationDetails">Run the agent to build unsigned transactions.</p>
+              <button class="primary-button" id="approveBtn" type="button" disabled>Approve in Wallet</button>
+            </article>
+          </div>
+        </section>
+
+        <section class="section-grid" id="result">
+          <div class="section-title">
+            <p class="eyebrow">Screen 7</p>
+            <h2>Result</h2>
+          </div>
+          <div class="result-card" id="resultCard">
+            <span>Status</span>
+            <strong id="resultStatus">No transaction yet</strong>
+            <p id="resultMessage">Final confirmation appears here after wallet approval.</p>
+            <dl id="resultDetails"></dl>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "id": "zawa",
+  "displayName": "ZAWA Agent",
+  "description": "An anxiety-powered Mantle onboarding buddy who protects beginners from gas fees, scams, bad bridges, and reckless transactions.",
+  "spritesheetPath": "spritesheet.webp"
+}
