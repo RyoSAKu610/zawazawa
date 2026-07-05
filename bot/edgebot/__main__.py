@@ -24,10 +24,16 @@ def main(argv: list[str] | None = None) -> int:
     p_f = sub.add_parser("funding", help="MEXC 資金調達率ランキング")
     p_f.add_argument("--top", type=int, default=20)
 
-    p_c = sub.add_parser("carry", help="ファンディングキャリー建玉 (デフォルト dry-run)")
+    p_c = sub.add_parser("carry", help="ファンディングキャリー建玉プラン (デフォルト dry-run)")
     p_c.add_argument("symbol", help="例: BTC_USDT")
     p_c.add_argument("--notional", type=float, required=True, help="USDT建てサイズ")
-    p_c.add_argument("--live", action="store_true", help="現物レッグを実発注する")
+    p_c.add_argument("--live", action="store_true", help="現物レッグ(MEXC)を実発注する")
+
+    p_s = sub.add_parser("short", help="Gate 先物ショートレッグ執行 (デフォルト dry-run)")
+    p_s.add_argument("contract", help="例: BTC_USDT")
+    p_s.add_argument("--qty", type=float, required=True, help="基軸通貨数量(現物レッグと同数)")
+    p_s.add_argument("--live", action="store_true")
+    p_s.add_argument("--close", action="store_true", help="ショートを決済する")
 
     sub.add_parser("balances", help="MEXC 残高照会 (APIキー必須)")
 
@@ -46,6 +52,14 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "carry":
         from .executor.funding_position import open_carry
         plan = open_carry(args.symbol, args.notional, live=args.live)
+        print(json.dumps(plan, ensure_ascii=False, indent=2))
+        if not args.live:
+            print("\n(dry-run: 発注していません。実発注は --live)")
+
+    elif args.cmd == "short":
+        from .executor.funding_position import close_gate_short, open_gate_short
+        fn = close_gate_short if args.close else open_gate_short
+        plan = fn(args.contract, args.qty, live=args.live)
         print(json.dumps(plan, ensure_ascii=False, indent=2))
         if not args.live:
             print("\n(dry-run: 発注していません。実発注は --live)")

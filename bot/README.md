@@ -72,10 +72,17 @@ python -m edgebot scan --only funding_arb,cross_exchange_arb
 python -m edgebot funding --top 20
 
 # ファンディングキャリー建玉プラン(dry-run: 実データで注文内容を組むだけ)
+# 判定は Gate 側 funding(ショートを置く側が受け取るため)。Gate 最小枚数にデルタを揃える
 python -m edgebot carry BTC_USDT --notional 50
 
-# 実発注(現物レッグ。EDGEBOT_MIN_EDGE_BPS 等のリスク上限を通ったときだけ発注)
+# 実発注ステップ1: 現物レッグ(MEXC, LIMIT_MAKER)。リスク上限を通ったときだけ発注
 MEXC_API_KEY=... MEXC_API_SECRET=... python -m edgebot carry BTC_USDT --notional 50 --live
+
+# 実発注ステップ2: 現物約定を確認後、Gate でショートレッグ(qty は現物と同数)
+GATE_API_KEY=... GATE_API_SECRET=... python -m edgebot short BTC_USDT --qty 0.0005 --live
+
+# 決済(ショート側)
+python -m edgebot short BTC_USDT --qty 0.0005 --close --live
 
 # 残高照会
 python -m edgebot balances
@@ -103,7 +110,8 @@ cd bot && python -m unittest discover -s tests -v
 ## ロードマップ
 
 - [ ] スキャンログ数日分から持続エッジを選定(淘汰第1ラウンド)
-- [ ] Gate 先物クライアント追加 → ファンディングキャリー両レッグ全自動化
+- [x] Gate 先物クライアント追加(ショートレッグ執行: `short` コマンド)
+- [ ] ファンディングキャリー両レッグの完全自動化(現物約定検知→自動ショート)
 - [ ] WebSocket 化(MEXC spot WS)で三角/取引所間アビトラのレイテンシ短縮
 - [ ] Solana ウォレット統合(Jupiter swap 送信)で CEX-DEX 全自動化
 - [ ] MEXC 0%手数料ペアでの薄板MM(メイカー両建てスプレッド取り)
