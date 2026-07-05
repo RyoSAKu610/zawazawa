@@ -10,6 +10,9 @@ dry_run (デフォルト) は実データで注文内容を組み立てて表示
 
 from __future__ import annotations
 
+import os
+from datetime import datetime, timezone
+
 from ..config import CONFIG
 from ..edges.funding_arb import annualize
 from ..exchanges import mexc
@@ -84,6 +87,108 @@ def open_carry(symbol: str, notional_usdt: float, live: bool = False) -> dict:
         plan["spot_order_response"] = client.new_order(
             spot_symbol, "BUY", "LIMIT_MAKER", quantity=qty, price=limit_px)
     return plan
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def run_carry_auto(symbol: str, notional_usdt: float, live: bool = False,
+                    fill_timeout_s: float = 300, poll_interval_s: float = 3) -> dict:
+    """現物レッグの約定を自動で待ち受け、約定次第 Gate ショートで自動ヘッジする。
+
+    open_carry で現物ロングの指値を発注 (live=True のとき) した後、
+    query_order をポーリングして約定を検知する。PARTIALLY_FILLED はまだ待機継続。
+    EDGEBOT_KILL_SWITCH=1 が立てば毎ポーリングで検知し、注文をキャンセルして中断する
+    (例外は投げない)。fill_timeout_s を超えたら注文をキャンセルし、
+    部分約定分があれば最小1枚を満たす範囲でヘッジする。
+
+    live=False (dry-run) の場合は open_carry のプランを返すだけで、ポーリング/発注は一切行わない。
+    """
+    started_at = _now_iso()
+    plan = open_carry(symbol, notional_usdt, live=live)
+
+    if not live:
+        return {
+            "status": "dry_run",
+            "symbol": symbol,
+            "plan": plan,
+            "note": "dry-run: 自動ヘッジ(現物約定待ち→Gateショート)には --live が必要です",
+            "started_at": started_at,
+            "ended_at": started_at,
+        }
+
+    import time  # dry-run パスでは使わないのでローカルインポート
+
+    client = MexcSpotClient(CONFIG.mexc_api_key, CONFIG.mexc_api_secret)
+
+    spot_resp = plan["spot_order_response"]
+    spot_symbol = spot_resp["symbol"]
+    order_id = spot_resp["orderId"]
+
+    status_resp = spot_resp
+    status = spot_resp.get("status", "NEW")
+    executed_qty = float(spot_resp.get("executedQty", 0) or 0)
+
+    deadline = time.monotonic() + fill_timeout_s
+
+    while status != "FILLED":
+        if os.environ.get("EDGEBOT_KILL_SWITCH") == "1":
+            cancel_resp = client.cancel_order(spot_symbol, order_id)
+            return {
+                "status": "aborted_kill_switch",
+                "symbol": symbol,
+                "plan": plan,
+                "spot_order_status": status_resp,
+                "cancel_response": cancel_resp,
+                "executed_qty": executed_qty,
+                "started_at": started_at,
+                "ended_at": _now_iso(),
+                "note": "EDGEBOT_KILL_SWITCH=1 を検知したため中断し現物注文をキャンセルしました",
+            }
+
+        if time.monotonic() >= deadline:
+            cancel_resp = client.cancel_order(spot_symbol, order_id)
+            executed_qty = float(cancel_resp.get("executedQty", executed_qty) or executed_qty)
+            result = {
+                "status": "timeout_cancelled",
+                "symbol": symbol,
+                "plan": plan,
+                "spot_order_status": status_resp,
+                "cancel_response": cancel_resp,
+                "executed_qty": executed_qty,
+                "started_at": started_at,
+                "ended_at": _now_iso(),
+            }
+            if executed_qty > 0:
+                info = _gate_contract_info(symbol)
+                multiplier = float(info["quanto_multiplier"])
+                if executed_qty / multiplier >= 1:
+                    result["status"] = "partial_hedged"
+                    result["futures_result"] = open_gate_short(symbol, executed_qty, live=True)
+                else:
+                    result["status"] = "filled_unhedged_below_min"
+                    result["note"] = (
+                        f"約定数量 {executed_qty} は Gate 最小1枚"
+                        f"(quanto_multiplier={multiplier})未満のため未ヘッジ")
+            return result
+
+        time.sleep(poll_interval_s)
+        status_resp = client.query_order(spot_symbol, order_id)
+        status = status_resp.get("status", status)
+        executed_qty = float(status_resp.get("executedQty", executed_qty) or executed_qty)
+
+    futures_result = open_gate_short(symbol, executed_qty, live=True)
+    return {
+        "status": "hedged",
+        "symbol": symbol,
+        "plan": plan,
+        "spot_order_status": status_resp,
+        "executed_qty": executed_qty,
+        "futures_result": futures_result,
+        "started_at": started_at,
+        "ended_at": _now_iso(),
+    }
 
 
 def open_gate_short(contract: str, qty: float, live: bool = False) -> dict:

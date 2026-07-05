@@ -135,6 +135,11 @@ class MexcSpotClient:
         params, headers = self._signed({"symbol": symbol, "orderId": order_id})
         return delete_json(f"{SPOT_BASE}/api/v3/order", params, headers)
 
+    def query_order(self, symbol: str, order_id: str) -> dict:
+        """注文状況を照会する。status / executedQty を含む。"""
+        params, headers = self._signed({"symbol": symbol, "orderId": order_id})
+        return get_json(f"{SPOT_BASE}/api/v3/order", params, headers)
+
     def open_orders(self, symbol: str) -> list:
         params, headers = self._signed({"symbol": symbol})
         return get_json(f"{SPOT_BASE}/api/v3/openOrders", params, headers)

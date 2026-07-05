@@ -95,6 +95,14 @@ GATE_API_KEY=... GATE_API_SECRET=... python -m edgebot short BTC_USDT --qty 0.00
 # 決済(ショート側)
 python -m edgebot short BTC_USDT --qty 0.0005 --close --live
 
+# 両レッグ全自動: 現物約定をポーリング検知して Gate ショートを自動執行
+# (タイムアウトで自動キャンセル、部分約定はヘッジ、キルスイッチ即応)
+MEXC_API_KEY=... MEXC_API_SECRET=... GATE_API_KEY=... GATE_API_SECRET=... \
+  python -m edgebot carry BTC_USDT --notional 50 --live --auto
+
+# スキャンログから淘汰レポート(実運用候補の選定)
+python -m edgebot report --days 7
+
 # 残高照会
 python -m edgebot balances
 ```
@@ -122,7 +130,7 @@ cd bot && python -m unittest discover -s tests -v
 
 - [ ] スキャンログ数日分から持続エッジを選定(淘汰第1ラウンド)
 - [x] Gate 先物クライアント追加(ショートレッグ執行: `short` コマンド)
-- [ ] ファンディングキャリー両レッグの完全自動化(現物約定検知→自動ショート)
+- [x] ファンディングキャリー両レッグの完全自動化(carry --auto)
 - [ ] WebSocket 化(MEXC spot WS)で三角/取引所間アビトラのレイテンシ短縮
 - [ ] Solana ウォレット統合(Jupiter swap 送信)で CEX-DEX 全自動化
 - [ ] MEXC 0%手数料ペアでの薄板MM(メイカー両建てスプレッド取り)
