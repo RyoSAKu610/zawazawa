@@ -33,7 +33,7 @@ class Config:
         ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT"],
     ))
     # CEX-DEXアビトラで使う想定取引サイズ(USDT建て)。実測スリッページ込みの見積りに使う。
-    trade_notional_usdt: float = field(default_factory=lambda: _env_float("EDGEBOT_NOTIONAL_USDT", 500.0))
+    trade_notional_usdt: float = field(default_factory=lambda: _env_float("EDGEBOT_NOTIONAL_USDT", 200.0))
 
     # --- 手数料 (テイカー、割合)。実アカウントの手数料が判明したら環境変数で上書きする ---
     # MEXC 公表値: スポット メイカー0%/テイカー0.05% (多数ペアは0/0)、先物 メイカー0%/テイカー0.02%
@@ -52,9 +52,9 @@ class Config:
     bitflyer_spot_taker: float = field(default_factory=lambda: _env_float("BITFLYER_SPOT_TAKER", 0.0015))
     bitbank_spot_taker: float = field(default_factory=lambda: _env_float("BITBANK_SPOT_TAKER", 0.0012))
 
-    # --- リスク上限 (実発注時) ---
-    max_order_notional_usdt: float = field(default_factory=lambda: _env_float("EDGEBOT_MAX_ORDER_USDT", 100.0))
-    max_total_notional_usdt: float = field(default_factory=lambda: _env_float("EDGEBOT_MAX_TOTAL_USDT", 1000.0))
+    # --- リスク上限 (実発注時)。運用資金 $100-500 想定のデフォルト ---
+    max_order_notional_usdt: float = field(default_factory=lambda: _env_float("EDGEBOT_MAX_ORDER_USDT", 50.0))
+    max_total_notional_usdt: float = field(default_factory=lambda: _env_float("EDGEBOT_MAX_TOTAL_USDT", 300.0))
     min_edge_bps_to_execute: float = field(default_factory=lambda: _env_float("EDGEBOT_MIN_EDGE_BPS", 5.0))
 
     # --- 出力 ---

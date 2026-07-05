@@ -31,6 +31,21 @@
   ファンディングキャリーの先物レッグは (a) MEXC アプリで手動執行、(b) Gate/Bybit でショート、
   (c) MEXC のAPI先物利用申請(機関/MM向け)のいずれかで対応する。
 
+## Claude Code on the Web で動かす場合のネットワーク許可
+
+環境のネットワークポリシー(claude.ai/code の環境設定)で以下のドメインを許可する:
+
+```
+api.mexc.com          # MEXC スポット
+contract.mexc.com     # MEXC 先物 (閲覧)
+api.gateio.ws         # Gate スポット/先物
+api.bybit.com         # Bybit (funding比較・データのみ)
+lite-api.jup.ag       # Jupiter (Solana DEX 見積り)
+api.bitflyer.com      # bitFlyer (国内)
+public.bitbank.cc     # bitbank (国内)
+open.er-api.com       # USD/JPY レート
+```
+
 ## セットアップ
 
 ```bash
@@ -70,8 +85,8 @@ python -m edgebot balances
 
 全ての実発注は `executor/risk.py` を通る:
 
-- `EDGEBOT_MAX_ORDER_USDT` — 1注文の上限 (デフォルト 100)
-- `EDGEBOT_MAX_TOTAL_USDT` — 総建玉上限 (デフォルト 1000)
+- `EDGEBOT_MAX_ORDER_USDT` — 1注文の上限 (デフォルト 50)
+- `EDGEBOT_MAX_TOTAL_USDT` — 総建玉上限 (デフォルト 300)
 - `EDGEBOT_MIN_EDGE_BPS` — これ未満のエッジでは発注しない (デフォルト 5bps)
 - `EDGEBOT_KILL_SWITCH=1` — 全発注を即時停止
 
