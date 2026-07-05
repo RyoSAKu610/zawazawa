@@ -54,6 +54,17 @@ pip install -r requirements.txt   # requests のみ(無くても標準ライブ�
 cp config.example.env .env        # 実発注する場合のみAPIキーを設定
 ```
 
+### Windows で最速で始める
+
+```powershell
+winget install Python.Python.3.12   # 未インストールの場合
+git clone https://github.com/RyoSAKu610/zawazawa.git
+cd zawazawa; git checkout claude/crypto-arbitrage-bot-xg6dr8; cd bot
+.\run-scan.ps1                       # 60秒間隔の常時スキャン開始 (Ctrl+C で停止)
+```
+
+数日回したら `python -m edgebot report` で「プラスが持続しているエッジ」の淘汰レポートを出す。
+
 ## 使い方
 
 ```bash
