@@ -6,3 +6,9 @@ dist/
 
 # Generated PV frame dumps are large and reproducible from the video source.
 video/frames/
+
+# edgebot
+bot/logs/
+bot/.env
+__pycache__/
+*.pyc
