@@ -1,144 +1,151 @@
-# edgebot — 市場の歪みスキャナ & 実行基盤
+# edgebot — Market Inefficiency Scanner & Execution Base
 
-クリプト(MEXC 現物/先物・Solana DEX・国内取引所)の**実データだけ**でエッジを計測し、
-手数料控除後もプラスが残るエッジから順に実運用へ載せるためのボット基盤。
+A bot foundation for crypto (MEXC spot/futures, Solana DEX, domestic Japanese exchanges) that
+measures edges using **real data only**, and rolls out to live trading starting with whichever
+edges remain net-positive after fees.
 
-模擬値・ダミー値は一切使わない。スキャナが出す数字は全て実行時点の取引所API・DEX見積りの実測値。
+No simulated or dummy values are ever used. Every number the scanner reports is a live measurement
+taken from exchange APIs / DEX quotes at run time.
 
-## 運用フロー(エッジの淘汰)
-
-```
-1. scan --loop で常時計測 → logs/edges-YYYYMMDD.jsonl に蓄積
-2. 数日回して「手数料控除後プラスが持続する」エッジだけ残す
-3. 残ったエッジを小サイズ(--notional 50 程度)で実発注して滑り・実効エッジを確認
-4. 実測が計測と一致したらサイズを段階的に上げ、専用実行モジュールを磨く
-```
-
-## 実装済みエッジ(botter Advent Calendar 等の公開定番から選定)
-
-| # | エッジ | 内容 | 執行 |
-|---|--------|------|------|
-| 1 | `funding_arb` | 資金調達率キャリー: 現物ロング+無期限ショートのデルタニュートラルで funding 受取。年率換算・損益分岐回数を実測 | 現物レッグ自動 / 先物レッグ半自動(下記制約) |
-| 2 | `cross_exchange_arb` | 取引所間現物アビトラ: MEXC vs Gate/Bybit の bid/ask クロスを両テイカー手数料控除後で計測。両側在庫・同時テイク方式 | 自動化可 |
-| 3 | `cex_dex_arb` | CEX-DEX アビトラ: MEXC 板の実サイズVWAP vs Jupiter(Solana)実行可能見積りの乖離。Solana手数料控除 | CEX側自動 / DEX側は要ウォレット実装 |
-| 4 | `triangular_arb` | MEXC 内三角アビトラ(USDT→X→BTC/ETH/USDC→USDT)。テイカー3脚前提の保守計測 | 自動化可(要WS低レイテンシ化) |
-| 5 | `jpy_premium` | 国内外プレミアム: bitFlyer/bitbank BTC/JPY vs MEXC BTC/USDT×USDJPY | 両側在庫で自動化可 |
-
-### MEXC の重要な実務制約
-
-- **メイカー手数料 0%**(スポット・先物とも。多数ペアはテイカーも0%)→ 薄いエッジでも成立しやすく、本基盤は `LIMIT_MAKER`(post-only)を標準にしている。
-- **先物の発注APIは一般ユーザーには開放されていない**(長期メンテナンス扱い。閲覧系は利用可)。
-  ファンディングキャリーの先物レッグは (a) MEXC アプリで手動執行、(b) Gate/Bybit でショート、
-  (c) MEXC のAPI先物利用申請(機関/MM向け)のいずれかで対応する。
-
-## Claude Code on the Web で動かす場合のネットワーク許可
-
-環境のネットワークポリシー(claude.ai/code の環境設定)で以下のドメインを許可する:
+## Operating Flow (Edge Selection)
 
 ```
-api.mexc.com          # MEXC スポット
-contract.mexc.com     # MEXC 先物 (閲覧)
-api.gateio.ws         # Gate スポット/先物
-api.bybit.com         # Bybit (funding比較・データのみ)
-lite-api.jup.ag       # Jupiter (Solana DEX 見積り)
-api.bitflyer.com      # bitFlyer (国内)
-public.bitbank.cc     # bitbank (国内)
-open.er-api.com       # USD/JPY レート
+1. Run scan --loop continuously → accumulates into logs/edges-YYYYMMDD.jsonl
+2. Run for several days, keep only edges that stay net-positive after fees
+3. Place small live orders on surviving edges (--notional ~50) to check slippage / realized edge
+4. Once realized matches measured, scale size up gradually and refine the dedicated execution module
 ```
 
-## セットアップ
+## Implemented Edges (selected from public botter Advent Calendar staples)
+
+| # | Edge | Description | Execution |
+|---|------|-------------|-----------|
+| 1 | `funding_arb` | Funding rate carry: delta-neutral spot-long + perp-short collecting funding. Measures annualized rate and breakeven settlement count | Spot leg automated / futures leg semi-automated (see constraint below) |
+| 2 | `cross_exchange_arb` | Cross-exchange spot arbitrage: measures MEXC vs Gate/Bybit bid/ask crossing net of both taker fees. Dual-inventory, simultaneous-take approach | Automatable |
+| 3 | `cex_dex_arb` | CEX-DEX arbitrage: gap between MEXC order book real-size VWAP and Jupiter (Solana) executable quote, net of Solana fees | CEX side automated / DEX side needs wallet implementation |
+| 4 | `triangular_arb` | Triangular arbitrage within MEXC (USDT→X→BTC/ETH/USDC→USDT). Conservative measurement assuming 3 taker legs | Automatable (needs WS low-latency) |
+| 5 | `jpy_premium` | Domestic/overseas premium: bitFlyer/bitbank BTC/JPY vs MEXC BTC/USDT × USDJPY | Automatable with dual inventory |
+
+### Key MEXC Operational Constraints
+
+- **0% maker fees** (both spot and futures; many pairs are 0% taker too) → makes thin edges viable,
+  so this base defaults to `LIMIT_MAKER` (post-only) orders.
+- **The futures order-placement API is not open to retail users** (long-term maintenance status;
+  read-only endpoints work fine). The futures leg of the funding carry is handled via
+  (a) manual execution in the MEXC app, (b) shorting on Gate/Bybit instead, or
+  (c) applying for MEXC's institutional/market-maker futures API access.
+
+## Network Access for Claude Code on the Web
+
+When running in a Claude Code on the Web environment, allow the following domains in the
+environment's network policy:
+
+```
+api.mexc.com          # MEXC spot
+contract.mexc.com     # MEXC futures (read-only)
+api.gateio.ws         # Gate spot/futures
+api.bybit.com         # Bybit (funding comparison / data only)
+lite-api.jup.ag       # Jupiter (Solana DEX quotes)
+api.bitflyer.com      # bitFlyer (Japan)
+public.bitbank.cc     # bitbank (Japan)
+open.er-api.com       # USD/JPY rate
+```
+
+## Setup
 
 ```bash
 cd bot
-pip install -r requirements.txt   # requests のみ(無くても標準ライブラリで動く)
-cp config.example.env .env        # 実発注する場合のみAPIキーを設定
+pip install -r requirements.txt   # only dependency is requests (works with stdlib too)
+cp config.example.env .env        # set API keys only if you intend to place live orders
 ```
 
-### Windows で最速で始める
+### Fastest Start on Windows
 
 ```powershell
-winget install Python.Python.3.12   # 未インストールの場合
+winget install Python.Python.3.12   # if not already installed
 git clone https://github.com/RyoSAKu610/zawazawa.git
 cd zawazawa; git checkout claude/crypto-arbitrage-bot-xg6dr8; cd bot
-.\run-scan.ps1                       # 60秒間隔の常時スキャン開始 (Ctrl+C で停止)
+.\run-scan.ps1                       # starts continuous scanning every 60s (Ctrl+C to stop)
 ```
 
-数日回したら `python -m edgebot report` で「プラスが持続しているエッジ」の淘汰レポートを出す。
+After running for a few days, run `python -m edgebot report` to get a selection report of
+"edges that stay net-positive."
 
-## 使い方
+## Usage
 
 ```bash
 cd bot
 
-# 全エッジを1回計測(APIキー不要・読み取りのみ)
+# Measure all edges once (no API key needed, read-only)
 python -m edgebot scan
 
-# 60秒間隔で常時計測してJSONLへ蓄積(エッジ持続性の検証)
+# Continuous measurement every 60s, accumulating to JSONL (for checking edge persistence)
 python -m edgebot scan --loop 60
 
-# 特定エッジのみ
+# Only specific edges
 python -m edgebot scan --only funding_arb,cross_exchange_arb
 
-# MEXC 資金調達率ランキング(年率換算)
+# MEXC funding rate ranking (annualized)
 python -m edgebot funding --top 20
 
-# ファンディングキャリー建玉プラン(dry-run: 実データで注文内容を組むだけ)
-# 判定は Gate 側 funding(ショートを置く側が受け取るため)。Gate 最小枚数にデルタを揃える
+# Funding carry position plan (dry-run: builds the order from real data but doesn't place it)
+# Judged on Gate-side funding (the short leg receives it). Delta is matched to Gate's contract size.
 python -m edgebot carry BTC_USDT --notional 50
 
-# 実発注ステップ1: 現物レッグ(MEXC, LIMIT_MAKER)。リスク上限を通ったときだけ発注
+# Live step 1: spot leg (MEXC, LIMIT_MAKER). Only places the order if it passes risk limits
 MEXC_API_KEY=... MEXC_API_SECRET=... python -m edgebot carry BTC_USDT --notional 50 --live
 
-# 実発注ステップ2: 現物約定を確認後、Gate でショートレッグ(qty は現物と同数)
+# Live step 2: after confirming the spot fill, short leg on Gate (qty must match the spot leg)
 GATE_API_KEY=... GATE_API_SECRET=... python -m edgebot short BTC_USDT --qty 0.0005 --live
 
-# 決済(ショート側)
+# Close (short side)
 python -m edgebot short BTC_USDT --qty 0.0005 --close --live
 
-# 両レッグ全自動: 現物約定をポーリング検知して Gate ショートを自動執行
-# (タイムアウトで自動キャンセル、部分約定はヘッジ、キルスイッチ即応)
+# Fully automated both legs: polls for the spot fill and auto-executes the Gate short
+# (auto-cancels on timeout, hedges partial fills, kill switch responds immediately)
 MEXC_API_KEY=... MEXC_API_SECRET=... GATE_API_KEY=... GATE_API_SECRET=... \
   python -m edgebot carry BTC_USDT --notional 50 --live --auto
 
-# スキャンログから淘汰レポート(実運用候補の選定)
+# Selection report from scan logs (identifies live-trading candidates)
 python -m edgebot report --days 7
 
-# 残高照会
+# Balance check
 python -m edgebot balances
 ```
 
-## リスク管理
+## Risk Management
 
-全ての実発注は `executor/risk.py` を通る:
+Every live order passes through `executor/risk.py`:
 
-- `EDGEBOT_MAX_ORDER_USDT` — 1注文の上限 (デフォルト 50)
-- `EDGEBOT_MAX_TOTAL_USDT` — 総建玉上限 (デフォルト 300)
-- `EDGEBOT_MIN_EDGE_BPS` — これ未満のエッジでは発注しない (デフォルト 5bps)
-- `EDGEBOT_KILL_SWITCH=1` — 全発注を即時停止
+- `EDGEBOT_MAX_ORDER_USDT` — per-order cap (default 50)
+- `EDGEBOT_MAX_TOTAL_USDT` — total open notional cap (default 300)
+- `EDGEBOT_MIN_EDGE_BPS` — orders below this edge are not placed (default 5bps)
+- `EDGEBOT_KILL_SWITCH=1` — immediately halts all order placement
 
-APIキーは環境変数のみ。リポジトリには置かない。**出金権限のないAPIキーを使うこと。**
+API keys come only from environment variables and are never stored in the repo.
+**Use API keys with no withdrawal permission.**
 
-## テスト
+## Tests
 
 ```bash
 cd bot && python -m unittest discover -s tests -v
 ```
 
-(テストは署名・手数料計算・リスク判定など純粋ロジックのみ。市場値の模擬はしない)
+(Tests cover pure logic only — signing, fee math, risk checks. No market values are simulated.)
 
-## ロードマップ
+## Roadmap
 
-- [ ] スキャンログ数日分から持続エッジを選定(淘汰第1ラウンド)
-- [x] Gate 先物クライアント追加(ショートレッグ執行: `short` コマンド)
-- [x] ファンディングキャリー両レッグの完全自動化(carry --auto)
-- [ ] WebSocket 化(MEXC spot WS)で三角/取引所間アビトラのレイテンシ短縮
-- [ ] Solana ウォレット統合(Jupiter swap 送信)で CEX-DEX 全自動化
-- [ ] MEXC 0%手数料ペアでの薄板MM(メイカー両建てスプレッド取り)
-- [ ] 国内株式(kabuステーション等のAPI)は別フェーズで検討
+- [ ] Select persistent edges from several days of scan logs (first selection round)
+- [x] Add Gate futures client (short-leg execution: `short` command)
+- [x] Fully automate both legs of the funding carry (`carry --auto`)
+- [ ] Move to WebSocket (MEXC spot WS) to reduce latency for triangular/cross-exchange arb
+- [ ] Solana wallet integration (sending Jupiter swaps) to fully automate CEX-DEX arb
+- [ ] Thin-book market making on MEXC's 0%-fee pairs (two-sided maker spread capture)
+- [ ] Domestic equities (e.g. kabu Station API) considered as a separate future phase
 
-## 情報源(エッジ選定の根拠)
+## Sources (Basis for Edge Selection)
 
-- [仮想通貨botter Advent Calendar](https://qiita.com/advent-calendar/2025/botter)(定番エッジの公開事例)
-- [消えたエッジの話(2024)](https://qiita.com/chanta/items/158f0d2b63afa2e6935b)(エッジの寿命と淘汰の考え方)
-- [MEXC 手数料一覧](https://www.mexc.com/fee) / [MEXC ゼロ手数料](https://www.mexc.com/zero-fee)
-- [MEXC 0手数料市場向けOSSボット](https://github.com/Neutral-Debug/Mexc-Trading-Bot)(post-only 徹底の先行例)
+- [仮想通貨botter Advent Calendar](https://qiita.com/advent-calendar/2025/botter) (public write-ups of common edges)
+- [消えたエッジの話 (2024)](https://qiita.com/chanta/items/158f0d2b63afa2e6935b) (on edge lifespan and decay)
+- [MEXC fee schedule](https://www.mexc.com/fee) / [MEXC zero-fee program](https://www.mexc.com/zero-fee)
+- [Open-source MEXC 0-fee bot](https://github.com/Neutral-Debug/Mexc-Trading-Bot) (prior art on strict post-only execution)
